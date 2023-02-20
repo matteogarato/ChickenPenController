@@ -20,13 +20,15 @@ def main():
     dhtPin = config.getint('Sensor', 'dhtPin')
     if dhtPin is None or dhtPin == 0:
         dhtPin = 4
-    mqttHost = config.get('Sensor', 'mqttHost')
+    mqttHost = config.get('MQTT', 'mqttHost')
     if mqttHost is None or mqttHost == '':
         return
-    tempChannel = config.get('Sensor', 'tempChannel')
-    humidityChannel = config.get('Sensor', 'humidityChannel')
+    tempChannel = config.get('MQTT', 'tempChannel')
+    humidityChannel = config.get('MQTT', 'humidityChannel')
+    mqttUser = config.get('MQTT', 'user')
+    mqttPassword = config.get('MQTT', 'password')
     client = mqtt.Client()
-    client.username_pw_set("mqtt_user", "")
+    client.username_pw_set(mqttUser, mqttPassword)
     client.connect(mqttHost)
     client.loop_start()
     try:
