@@ -12,8 +12,17 @@ config = configparser.RawConfigParser()
 configFilePath = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'MqttTempsensor.config')
 
-fanPin = 0
-heatherPin = 0
+fanPin = 6
+heatherPin = 7
+dhtPinInternal = 5
+dhtPinExternal = 4
+minTemp = 15
+maxTemp = 30
+minHumidity = 30
+maxHumidity = 70
+refreshRate = 2
+fanStatus = False
+heatherStatus = False
 mqttUser = ""
 mqttPassword = ""
 mqttTopic = ""
@@ -24,11 +33,6 @@ internalTemperatureChannel = ""
 internalHumidityChannel = ""
 fanStatusChannel = ""
 heatherStatusChannel = ""
-dhtPinExternal = 4
-dhtPinInternal = 5
-refreshRate = 2
-fanStatus = False
-heatherStatus = False
 
 
 def main():
@@ -38,17 +42,20 @@ def main():
             try:
                 extHumidity, extTemperature = SensorReading(dhtPinExternal)
                 intHumidity, intTemperature = SensorReading(dhtPinInternal)
+                if intTemperature <= minTemp:
+                    TurnOffFan()
+                    TurnOnHeather()
+                if (extTemperature <= intTemperature and
+                        intTemperature >= maxTemp):
+                    TurnOffHeather()
+                    TurnOnFan()
+                if intHumidity > maxHumidity:
+                    TurnOnFan()
+                DataPublishing(extTemperature, extHumidity,
+                               intTemperature, intHumidity)
+                time.sleep(55/refreshRate)
             except Exception:
                 main()
-            if extTemperature >= intTemperature and extTemperature < 15:
-                TurnOffFan()
-                TurnOnHeather()
-            if extTemperature <= intTemperature and extTemperature > 30:
-                TurnOffHeather()
-                TurnOnFan()
-            DataPublishing(extTemperature, extHumidity,
-                           intTemperature, intHumidity)
-            time.sleep(55/refreshRate)
     except KeyboardInterrupt:
         pass
 
@@ -58,6 +65,8 @@ def Average(lst):
 
 
 def Setup():
+    if __debug__:
+        print("***Application in DEBUG mode***")
     ConfigurationReading()
     if not __debug__:
         GPIO.setmode(GPIO.BCM)
@@ -69,7 +78,6 @@ def Setup():
 
 
 def ConfigurationReading():
-    config.read(configFilePath)
     global fanPin
     global heatherPin
     global mqttUser
@@ -85,6 +93,7 @@ def ConfigurationReading():
     global refreshRate
     global fanStatusChannel
     global heatherStatusChannel
+    config.read(configFilePath)
     refreshRate = config.getint('Sensor', 'refreshRate')
     if refreshRate is None or refreshRate == 0:
         refreshRate = 1
@@ -92,7 +101,7 @@ def ConfigurationReading():
     dhtPinInternal = config.getint('Sensor', 'dhtPinInternal')
     fanPin = config.getint('Sensor', 'fanPin')
     heatherPin = config.getint('Sensor', 'heatherPin')
-    mqttHost = config.get('MQTT', 'Host')
+    mqttHost = config.get('MQTT', 'host')
     externalTemperatureChannel = config.get(
         'MQTT', 'externalTemperatureChannel')
     externalHumidityChannel = config.get('MQTT', 'externalHumidityChannel')
@@ -115,24 +124,27 @@ def DataPublishing(extTemperature, extHumidity, intTemperature, intHumidity):
         print(intHumidity)
         print(fanStatus)
         print(heatherStatus)
-    client = mqtt.Client()
-    client.username_pw_set(mqttUser, mqttPassword)
-    client.connect(mqttHost)
-    client.loop_start()
-    client.publish(mqttTopic+externalTemperatureChannel,
-                   json.dumps({"temperature": extTemperature}))
-    client.publish(mqttTopic+externalHumidityChannel,
-                   json.dumps({"humidity": extHumidity}))
-    client.publish(mqttTopic+internalTemperatureChannel,
-                   json.dumps({"temperature": intTemperature}))
-    client.publish(mqttTopic+internalHumidityChannel,
-                   json.dumps({"humidity": intHumidity}))
-    client.publish(mqttTopic+fanStatusChannel,
-                   json.dumps({"fan": fanStatus}))
-    client.publish(mqttTopic+heatherStatusChannel,
-                   json.dumps({"heather": heatherStatus}))
-    client.loop_stop()
-    client.disconnect()
+    try:
+        client = mqtt.Client()
+        client.username_pw_set(mqttUser, mqttPassword)
+        client.connect(mqttHost)
+        client.loop_start()
+        client.publish(mqttTopic+externalTemperatureChannel,
+                       json.dumps({"temperature": extTemperature}))
+        client.publish(mqttTopic+externalHumidityChannel,
+                       json.dumps({"humidity": extHumidity}))
+        client.publish(mqttTopic+internalTemperatureChannel,
+                       json.dumps({"temperature": intTemperature}))
+        client.publish(mqttTopic+internalHumidityChannel,
+                       json.dumps({"humidity": intHumidity}))
+        client.publish(mqttTopic+fanStatusChannel,
+                       json.dumps({"fan": fanStatus}))
+        client.publish(mqttTopic+heatherStatusChannel,
+                       json.dumps({"heather": heatherStatus}))
+        client.loop_stop()
+        client.disconnect()
+    except Exception:
+        return
     return
 
 
@@ -140,11 +152,11 @@ def SensorReading(dhtPin):
     readedTemp = []
     readedHum = []
     for x in range(5):
-        hum, tmp = Adafruit_DHT.read_retry(dhtsensor, dhtPin, 5)
+        hum, tmp = Adafruit_DHT.read_retry(dhtsensor, dhtPin, 5, 1)
         if hum is not None and tmp is not None:
             readedTemp.append(tmp)
             readedHum.append(hum)
-            time.sleep(2)
+            time.sleep(1)
 
     humidity = Average(readedHum)
     temperature = Average(readedTemp)
