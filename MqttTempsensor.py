@@ -1,16 +1,14 @@
 import os
 import time
 import json
-import configparser
 import Adafruit_DHT
 import paho.mqtt.client as mqtt
 
-from ConfigFileParsed import ConfigFileParsed
+from ConfigFileParser import ConfigFileParser
 if not __debug__:
     import RPi.GPIO as GPIO
 
 dhtsensor = Adafruit_DHT.DHT22
-config = configparser.RawConfigParser()
 configFilePath = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'MqttTempsensor.config')
 
@@ -22,7 +20,7 @@ heatherStatus = False
 def main():
     if __debug__:
         print("***Application in DEBUG mode***")
-    configurationReaded = ConfigurationReading()
+    configurationReaded = ConfigFileParser(configFilePath)
     if not __debug__:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(configurationReaded.fanPin, GPIO.OUT)
@@ -45,11 +43,17 @@ def main():
                     TurnOnFan(configurationReaded.fanPin)
                 if intHumidity > configurationReaded.maxHumidity:
                     TurnOnFan(configurationReaded.fanPin)
-                DataPublishing(extTemperature, extHumidity,
-                               intTemperature, intHumidity,
-                               configurationReaded)
+                if configurationReaded.mqttActive:
+                    DataPublishing(extTemperature, extHumidity,
+                                   intTemperature, intHumidity,
+                                   configurationReaded)
                 time.sleep(55/configurationReaded.refreshRate)
-            except Exception:
+                del extHumidity
+                del extTemperature
+                del intHumidity
+                del intTemperature
+            except Exception as ex:
+                print(ex)
                 main()
     except KeyboardInterrupt:
         pass
@@ -57,34 +61,6 @@ def main():
 
 def Average(lst):
     return sum(lst) / len(lst)
-
-
-def ConfigurationReading():
-    config.read(configFilePath)
-    refreshRate = config.getint('Sensor', 'refreshRate')
-    if refreshRate is None or refreshRate == 0:
-        refreshRate = 1
-    confReaded = ConfigFileParsed(config.getint('Sensor', 'fanPin'),
-                                  config.getint('Sensor', 'heatherPin'),
-                                  config.getint('Sensor', 'dhtPinInternal'),
-                                  config.getint('Sensor', 'dhtPinExternal'),
-                                  15, 30, 30, 70,
-                                  refreshRate,
-                                  config.get('MQTT', 'user'),
-                                  config.get('MQTT', 'password'),
-                                  config.get('MQTT', 'topic')+"/",
-                                  config.get('MQTT', 'host'),
-                                  config.get('MQTT',
-                                             'externalTemperatureChannel'),
-                                  config.get('MQTT',
-                                             'externalHumidityChannel'),
-                                  config.get('MQTT',
-                                             'internalTemperatureChannel'),
-                                  config.get('MQTT',
-                                             'internalHumidityChannel'),
-                                  config.get('MQTT', 'fanStatusChannel'),
-                                  config.get('MQTT', 'heatherStatusChannel'))
-    return confReaded
 
 
 def DataPublishing(extTemperature, extHumidity, intTemperature,
@@ -122,7 +98,9 @@ def DataPublishing(extTemperature, extHumidity, intTemperature,
                        json.dumps({"heather": heatherStatus}))
         client.loop_stop()
         client.disconnect()
-    except Exception:
+        del client
+    except Exception as ex:
+        print(ex)
         return
     return
 
