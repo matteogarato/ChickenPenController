@@ -47,7 +47,7 @@ def main():
                     DataPublishing(extTemperature, extHumidity,
                                    intTemperature, intHumidity,
                                    configurationReaded)
-                time.sleep(55/configurationReaded.refreshRate)
+                time.sleep(60/configurationReaded.refreshRate)
                 del extHumidity
                 del extTemperature
                 del intHumidity
@@ -109,11 +109,11 @@ def SensorReading(dhtPin):
     readedTemp = []
     readedHum = []
     for x in range(5):
-        hum, tmp = Adafruit_DHT.read_retry(dhtsensor, dhtPin, 5, 1)
+        hum, tmp = Adafruit_DHT.read_retry(dhtsensor, dhtPin, 5)
         if hum is not None and tmp is not None:
             readedTemp.append(tmp)
             readedHum.append(hum)
-            time.sleep(1)
+            time.sleep(2)
 
     humidity = Average(readedHum)
     temperature = Average(readedTemp)
