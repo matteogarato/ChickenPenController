@@ -10,7 +10,7 @@ if not __debug__:
 
 dhtsensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), 'MqttTempsensor.config')
+    os.path.dirname(os.path.realpath(__file__)), 'ChickenPenController.config')
 
 
 fanStatus = False
