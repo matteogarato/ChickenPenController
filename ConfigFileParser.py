@@ -10,6 +10,8 @@ class ConfigFileParser:
             refreshRate = 1
         self.fanPin = config.getint('Sensor', 'fanPin')
         self.heatherPin = config.getint('Sensor', 'heatherPin')
+        self.radioPin = config.getint('Sensor', 'radioPin')
+        self.rpiFanPin = config.getint('Sensor', 'rpiFanPin')
         self.dhtPinInternal = config.getint('Sensor', 'dhtPinInternal')
         self.dhtPinExternal = config.getint('Sensor', 'dhtPinExternal')
         self.minTemp = 15
