@@ -2,12 +2,18 @@ import os
 import time
 import json
 import Adafruit_DHT
+import logging
 import paho.mqtt.client as mqtt
 from gpiozero import CPUTemperature
-
 from ConfigFileParser import ConfigFileParser
-if not __debug__:
-    import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
+
+logging.basicConfig(
+    filename="ChickenPenController.log",
+    filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+    level=logging.DEBUG)
 
 dhtSensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
@@ -24,12 +30,9 @@ configurationRead: ConfigFileParser
 def main():
     global configurationRead
     configurationRead = ConfigFileParser(configFilePath)
-    if __debug__:
-        print("***Application in DEBUG mode***")
-    else:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(configurationRead.fanPin, GPIO.OUT)
-        GPIO.setup(configurationRead.heatherPin, GPIO.OUT)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(configurationRead.fanPin, GPIO.OUT)
+    GPIO.setup(configurationRead.heatherPin, GPIO.OUT)
     TurnOffHeather()
     TurnOffFan()
     TurnOffRadio()
@@ -75,13 +78,14 @@ def main():
                     client.loop_stop()
                     client.disconnect()
                     del client
-                print(ex)
+                logger.error(ex)
                 main()
     except KeyboardInterrupt:
         if configurationRead.mqttActive:
             client.loop_stop()
             client.disconnect()
             del client
+            logger.error("Keyboard Interrupt")
         pass
 
 
@@ -92,13 +96,9 @@ def Average(lst):
 def DataPublishing(client: mqtt.Client, extTemperature, extHumidity,
                    intTemperature, intHumidity):
     global configurationRead
-    if __debug__:
-        print(extTemperature)
-        print(extHumidity)
-        print(intTemperature)
-        print(intHumidity)
-        print(fanStatus)
-        print(heatherStatus)
+    logger.debug(
+        "extTemperature:{}, extHumidity:{}, intTemperature:{}, intHumidity:{} ,fanStatus:{} ,heatherStatus{}"
+        .format(extTemperature, extHumidity, intTemperature, intHumidity, fanStatus, heatherStatus))
     if configurationRead.mqttActive:
         client.loop_start()
         client.publish(configurationRead.mqttTopic +
@@ -139,10 +139,8 @@ def TurnOnHeather():
     global configurationRead, heatherStatus
     if not heatherStatus:
         heatherStatus = True
-        if not __debug__:
-            GPIO.output(configurationRead.heatherPin, GPIO.HIGH)
-        else:
-            print("turning off heather")
+        GPIO.output(configurationRead.heatherPin, GPIO.HIGH)
+        logger.debug("turning off heather")
     return
 
 
@@ -150,10 +148,8 @@ def TurnOffHeather():
     global configurationRead, heatherStatus
     if heatherStatus:
         heatherStatus = False
-        if not __debug__:
-            GPIO.output(configurationRead.heatherPin, GPIO.LOW)
-        else:
-            print("turning on heather")
+        GPIO.output(configurationRead.heatherPin, GPIO.LOW)
+        logger.debug("turning on heather")
     return
 
 
@@ -161,10 +157,8 @@ def TurnOnFan():
     global configurationRead, fanStatus
     if not fanStatus:
         fanStatus = True
-        if not __debug__:
-            GPIO.output(configurationRead.fanPin, GPIO.HIGH)
-        else:
-            print("turning on fan")
+        GPIO.output(configurationRead.fanPin, GPIO.HIGH)
+        logger.debug("turning on fan")
     return
 
 
@@ -172,10 +166,8 @@ def TurnOffFan():
     global configurationRead, fanStatus
     if fanStatus:
         fanStatus = False
-        if not __debug__:
-            GPIO.output(configurationRead.fanPin, GPIO.LOW)
-        else:
-            print("turning off fan")
+        GPIO.output(configurationRead.fanPin, GPIO.LOW)
+        logger.debug("turning off fan")
     return
 
 
@@ -183,10 +175,8 @@ def TurnOnRpiFan():
     global configurationRead, rpiFanStatus
     if not rpiFanStatus:
         rpiFanStatus = True
-        if not __debug__:
-            GPIO.output(configurationRead.rpiFanPin, GPIO.HIGH)
-        else:
-            print("turning on rpi fan")
+        GPIO.output(configurationRead.rpiFanPin, GPIO.HIGH)
+        logger.debug("turning on rpi fan")
     return
 
 
@@ -194,10 +184,8 @@ def TurnOffRpiFan():
     global configurationRead, rpiFanStatus
     if rpiFanStatus:
         rpiFanStatus = False
-        if not __debug__:
-            GPIO.output(configurationRead.rpiFanPin, GPIO.LOW)
-        else:
-            print("turning off rpi fan")
+        GPIO.output(configurationRead.rpiFanPin, GPIO.LOW)
+        logger.debug("turning off rpi fan")
     return
 
 
@@ -205,10 +193,8 @@ def TurnOnRadio():
     global configurationRead, radioStatus
     if not radioStatus:
         radioStatus = True
-        if not __debug__:
-            GPIO.output(configurationRead.radioPin, GPIO.HIGH)
-        else:
-            print("turning on radio")
+        GPIO.output(configurationRead.radioPin, GPIO.HIGH)
+        logger.debug("turning on radio")
     return
 
 
@@ -216,16 +202,13 @@ def TurnOffRadio():
     global configurationRead, radioStatus
     if radioStatus:
         radioStatus = False
-        if not __debug__:
-            GPIO.output(configurationRead.radioPin, GPIO.LOW)
-        else:
-            print("turning off radio")
+        GPIO.output(configurationRead.radioPin, GPIO.LOW)
+        logger.debug("turning off radio")
     return
 
 
 def on_message(client, userdata, message):
-    if __debug__:
-        print(str(message.payload.decode("utf-8")))
+    logger.debug(str(message.payload.decode("utf-8")))
     mqttStatusSetter = json.loads(str(message.payload.decode("utf-8")))
     if mqttStatusSetter.ActiveRadio:
         TurnOnRadio()
@@ -234,4 +217,5 @@ def on_message(client, userdata, message):
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger('ChickenPenController')
     main()
