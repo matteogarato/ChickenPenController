@@ -47,7 +47,7 @@ def main():
         while True:
             try:
                 cpuTemp = CPUTemperature()
-                if cpuTemp.temperature > 40:
+                if int(cpuTemp.temperature) > 40:
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
@@ -128,8 +128,8 @@ def SensorReading(dhtPin):
     for x in range(5):
         hum, tmp = Adafruit_DHT.read_retry(dhtSensor, dhtPin, 5)
         if hum is not None and tmp is not None:
-            readTemp.append(tmp)
-            readHum.append(hum)
+            readTemp.append(int(tmp))
+            readHum.append(int(hum))
     humidity = Average(readHum)
     temperature = Average(readTemp)
     return humidity, temperature
