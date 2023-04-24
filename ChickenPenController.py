@@ -1,19 +1,17 @@
+import json
+import logging
+import logging.handlers
 import os
 import time
-import json
-import Adafruit_DHT
-import logging
-import paho.mqtt.client as mqtt
-from gpiozero import CPUTemperature
-from ConfigFileParser import ConfigFileParser
-import RPi.GPIO as GPIO
 
-logging.basicConfig(
-    filename="ChickenPenController.log",
-    filemode='a',
-    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-    datefmt='%H:%M:%S',
-    level=logging.DEBUG)
+import Adafruit_DHT
+import paho.mqtt.client as mqtt
+import RPi.GPIO as GPIO
+from gpiozero import CPUTemperature
+
+from ConfigFileParser import ConfigFileParser
+
+logFileName = "ChickenPenController.log"
 
 dhtSensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
@@ -217,5 +215,17 @@ def on_message(client, userdata, message):
 
 
 if __name__ == "__main__":
+    log_handler = logging.handlers.TimedRotatingFileHandler(
+        logFileName,
+        when="d",
+        interval=1,
+        backupCount=5)
+    formatter = logging.Formatter(
+        '%(asctime)s program_name [%(process)d]: %(message)s',
+        '%b %d %H:%M:%S')
+    formatter.converter = time.localtime
+    log_handler.setFormatter(formatter)
     logger = logging.getLogger('ChickenPenController')
+    logger.addHandler(log_handler)
+    logger.setLevel(logging.DEBUG)
     main()
