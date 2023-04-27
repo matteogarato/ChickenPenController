@@ -9,7 +9,7 @@ class ConfigFileParser:
         if refreshRate is None or refreshRate == 0:
             refreshRate = 1
         self.fanPin = config.getint('Sensor', 'fanPin')
-        self.heatherPin = config.getint('Sensor', 'heatherPin')
+        self.heatherPin = config.get('Sensor', 'heatherPin')
         self.radioPin = config.getint('Sensor', 'radioPin')
         self.rpiFanPin = config.getint('Sensor', 'rpiFanPin')
         self.dhtPinInternal = config.getint('Sensor', 'dhtPinInternal')
@@ -18,6 +18,8 @@ class ConfigFileParser:
         self.maxTemp = 30
         self.minHumidity = 30
         self.maxHumidity = 70
+        self.externalTempOffset = config.getint('Sensor', 'externalTempOffset')
+        self.internalTempOffset = config.getint('Sensor', 'internalTempOffset')
         self.refreshRate = refreshRate
         self.mqttActive = config.getboolean('MQTT', 'mqttActive')
         self.mqttUser = config.get('MQTT', 'user')

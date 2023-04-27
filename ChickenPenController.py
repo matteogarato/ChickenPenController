@@ -50,9 +50,11 @@ def main():
                 else:
                     TurnOffRpiFan()
                 extHumidity, extTemperature = SensorReading(
-                    configurationRead.dhtPinExternal)
+                    configurationRead.dhtPinExternal,
+                    configurationRead.externalTempOffset)
                 intHumidity, intTemperature = SensorReading(
-                    configurationRead.dhtPinInternal)
+                    configurationRead.dhtPinInternal,
+                    configurationRead.internalTempOffset)
                 if intTemperature <= configurationRead.minTemp:
                     TurnOffFan()
                     TurnOnHeather()
@@ -120,7 +122,7 @@ def DataPublishing(client: mqtt.Client, extTemperature, extHumidity,
     return
 
 
-def SensorReading(dhtPin):
+def SensorReading(dhtPin, temperatureOffset):
     readTemp = []
     readHum = []
     for x in range(5):
@@ -129,7 +131,7 @@ def SensorReading(dhtPin):
             readTemp.append(int(tmp))
             readHum.append(int(hum))
     humidity = Average(readHum)
-    temperature = Average(readTemp)
+    temperature = Average(readTemp) + temperatureOffset
     return humidity, temperature
 
 
@@ -137,7 +139,9 @@ def TurnOnHeather():
     global configurationRead, heatherStatus
     if not heatherStatus:
         heatherStatus = True
-        GPIO.output(configurationRead.heatherPin, GPIO.HIGH)
+        heather, fan = configurationRead.heatherPin.split(',')
+        GPIO.output(heather, GPIO.HIGH)
+        GPIO.output(fan, GPIO.HIGH)
         logger.debug("turning off heather")
     return
 
@@ -146,7 +150,9 @@ def TurnOffHeather():
     global configurationRead, heatherStatus
     if heatherStatus:
         heatherStatus = False
-        GPIO.output(configurationRead.heatherPin, GPIO.LOW)
+        heather, fan = configurationRead.heatherPin.split(',')
+        GPIO.output(heather, GPIO.LOW)
+        GPIO.output(fan, GPIO.LOW)
         logger.debug("turning on heather")
     return
 
