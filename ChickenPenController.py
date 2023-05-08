@@ -99,7 +99,7 @@ def DataPublishing(client: mqtt.Client, extTemperature, extHumidity,
                    intTemperature, intHumidity):
     global configurationRead
     logger.debug(
-        "extTemperature:{}, extHumidity:{}, intTemperature:{}, intHumidity:{} ,fanStatus:{} ,heatherStatus{}"
+        "extTemperature:{}, extHumidity:{}, intTemperature:{}, intHumidity:{}, fanStatus:{}, heatherStatus:{}"
         .format(extTemperature, extHumidity, intTemperature, intHumidity, fanStatus, heatherStatus))
     if configurationRead.mqttActive:
         client.loop_start()
