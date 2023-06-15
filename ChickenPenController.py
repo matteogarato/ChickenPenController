@@ -30,14 +30,15 @@ def main():
     configurationRead = ConfigFileParser(configFilePath)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
+    GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
     heather, fan = configurationRead.heatherPin.split(',')
     GPIO.setup(int(heather), GPIO.OUT)
     GPIO.setup(int(fan), GPIO.OUT)
     TurnOffHeather()
     TurnOffFan()
     TurnOffRadio()
+    client = mqtt.Client()
     if configurationRead.mqttActive:
-        client = mqtt.Client()
         client.username_pw_set(configurationRead.mqttUser,
                                configurationRead.mqttPassword)
         client.connect(configurationRead.mqttHost)
@@ -92,15 +93,15 @@ def main():
 
 
 def Average(lst):
-    return sum(lst) / len(lst)
+    return int(sum(lst) / len(lst))
 
 
 def DataPublishing(client: mqtt.Client, extTemperature, extHumidity,
                    intTemperature, intHumidity):
     global configurationRead
     logger.debug(
-        "extTemperature:{}, extHumidity:{}, intTemperature:{}, intHumidity:{}, fanStatus:{}, heatherStatus:{}"
-        .format(extTemperature, extHumidity, intTemperature, intHumidity, fanStatus, heatherStatus))
+        "extTem:{}, extHum:{}, intTemp:{}, intHum:{}, fanStatus:{}, heatherStatus:{}, rpiFanStatus:{}"
+        .format(extTemperature, extHumidity, intTemperature, intHumidity, fanStatus, heatherStatus, rpiFanStatus))
     if configurationRead.mqttActive:
         client.loop_start()
         client.publish(configurationRead.mqttTopic +
