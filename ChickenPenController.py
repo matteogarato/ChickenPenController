@@ -1,10 +1,4 @@
-import json
-import logging
-import logging.handlers
-import os
-import time
-
-import Adafruit_DHT
+import os,time,json,logging,logging.handlers,Adafruit_DHT
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 from gpiozero import CPUTemperature
@@ -17,13 +11,11 @@ dhtSensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'ChickenPenController.config')
 
-
 fanStatus = False
 heatherStatus = False
 radioStatus = False
 rpiFanStatus = False
 configurationRead: ConfigFileParser
-
 
 def main():
     global configurationRead
@@ -47,96 +39,86 @@ def main():
     try:
         while True:
             try:
-                cpuTemp = CPUTemperature()
-                if int(cpuTemp.temperature) > 40:
+                cpu_temp = CPUTemperature().temperature
+                if cpu_temp > 40:
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-                extHumidity, extTemperature = SensorReading(
+                    
+                ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
-                intHumidity, intTemperature = SensorReading(
+                int_humidity, int_temperature = SensorReading(
                     configurationRead.dhtPinInternal,
                     configurationRead.internalTempOffset)
-                if intTemperature <= configurationRead.minTemp:
+
+                if int_temperature <= configurationRead.minTemp:
                     TurnOffFan()
                     TurnOnHeather()
-                if (extTemperature <= intTemperature and
-                        intTemperature >= configurationRead.maxTemp):
+
+                if (ext_temperature <= int_temperature and
+                        int_temperature >= configurationRead.maxTemp):
                     TurnOffHeather()
                     TurnOnFan()
-                if intHumidity > configurationRead.maxHumidity:
+
+                if int_humidity > configurationRead.maxHumidity:
                     TurnOnFan()
-                if intHumidity < configurationRead.minHumidity:
+
+                if int_humidity < configurationRead.minHumidity:
                     TurnOffFan()
-                DataPublishing(client, extTemperature, extHumidity,
-                               intTemperature, intHumidity)
-                time.sleep(60/configurationRead.refreshRate)
-                del extHumidity
-                del extTemperature
-                del intHumidity
-                del intTemperature
+
+                data = {
+                    "extTemperature": ext_temperature,
+                    "extHumidity": ext_humidity,
+                    "intTemperature": int_temperature,
+                    "intHumidity": int_humidity,
+                    "fanStatus": fanStatus,
+                    "heatherStatus": heatherStatus,
+                    "rpiFanStatus": rpiFanStatus
+                }
+                DataPublishing(client, data)
+
+                time.sleep(60 / configurationRead.refreshRate)
+
+                del ext_humidity, ext_temperature, int_humidity, int_temperature
+
+            except KeyboardInterrupt:
+                break
+
             except Exception as ex:
                 if configurationRead.mqttActive:
                     client.loop_stop()
                     client.disconnect()
                     del client
                 logger.error(ex)
-                main()
-    except KeyboardInterrupt:
+
+    finally:
         if configurationRead.mqttActive:
             client.loop_stop()
             client.disconnect()
             del client
-            logger.error("Keyboard Interrupt")
-        pass
-
-
-def Average(lst):
-    return int(sum(lst) / len(lst))
-
-
-def DataPublishing(client: mqtt.Client, extTemperature, extHumidity,
-                   intTemperature, intHumidity):
-    global configurationRead
-    logger.debug(
-        "extTem:{}, extHum:{}, intTemp:{}, intHum:{}, fanStatus:{}, heatherStatus:{}, rpiFanStatus:{}"
-        .format(extTemperature, extHumidity, intTemperature, intHumidity, fanStatus, heatherStatus, rpiFanStatus))
-    if configurationRead.mqttActive:
-        client.loop_start()
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.externalTemperatureChannel,
-                       json.dumps({"temperature": extTemperature}))
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.externalHumidityChannel,
-                       json.dumps({"humidity": extHumidity}))
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.internalTemperatureChannel,
-                       json.dumps({"temperature": intTemperature}))
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.internalHumidityChannel,
-                       json.dumps({"humidity": intHumidity}))
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.fanStatusChannel,
-                       json.dumps({"fan": fanStatus}))
-        client.publish(configurationRead.mqttTopic +
-                       configurationRead.heatherStatusChannel,
-                       json.dumps({"heather": heatherStatus}))
-    return
-
+        logger.error("Keyboard Interrupt")
 
 def SensorReading(dhtPin, temperatureOffset):
-    readTemp = []
-    readHum = []
-    for x in range(5):
+    read_temp = []
+    read_hum = []
+    for _ in range(5):
         hum, tmp = Adafruit_DHT.read_retry(dhtSensor, dhtPin, 5)
         if hum is not None and tmp is not None:
-            readTemp.append(int(tmp))
-            readHum.append(int(hum))
-    humidity = Average(readHum)
-    temperature = Average(readTemp) + temperatureOffset
+            read_temp.append(int(tmp))
+            read_hum.append(int(hum))
+    humidity = sum(read_hum) // len(read_hum)
+    temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
     return humidity, temperature
 
+def DataPublishing(client, data):
+    if configurationRead.mqttActive:
+        client.loop_start()
+        for key, value in data.items():
+            topic = configurationRead.mqttTopic + getattr(configurationRead, key + "Channel")
+            payload = json.dumps({key: value})
+            client.publish(topic, payload)
+    return
 
 def TurnOnHeather():
     global configurationRead, heatherStatus
@@ -145,7 +127,7 @@ def TurnOnHeather():
         heather, fan = configurationRead.heatherPin.split(',')
         GPIO.output(heather, GPIO.HIGH)
         GPIO.output(fan, GPIO.HIGH)
-        logger.debug("turning off heather")
+        logger.debug("turning on heather")
     return
 
 
@@ -156,7 +138,7 @@ def TurnOffHeather():
         heather, fan = configurationRead.heatherPin.split(',')
         GPIO.output(heather, GPIO.LOW)
         GPIO.output(fan, GPIO.LOW)
-        logger.debug("turning on heather")
+        logger.debug("turning off heather")
     return
 
 
