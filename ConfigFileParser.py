@@ -24,7 +24,8 @@ class ConfigFileParser:
         self.maxHumidity = self.DEFAULT_MAX_HUMIDITY
         self.externalTempOffset = config.getint('Sensor', 'externalTempOffset')
         self.internalTempOffset = config.getint('Sensor', 'internalTempOffset')
-        self.refreshRate = config.getint('Sensor', 'refreshRate') or self.DEFAULT_REFRESH_RATE
+        self.refreshRate = config.getint(
+            'Sensor', 'refreshRate') or self.DEFAULT_REFRESH_RATE
         self.mqttActive = config.getboolean('MQTT', 'mqttActive')
         self.mqttUser = config.get('MQTT', 'user')
         self.mqttPassword = config.get('MQTT', 'password')

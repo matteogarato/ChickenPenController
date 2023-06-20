@@ -1,4 +1,9 @@
-import os,time,json,logging,logging.handlers,Adafruit_DHT
+import os
+import time
+import json
+import logging
+import logging.handlers
+import Adafruit_DHT
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 from gpiozero import CPUTemperature
@@ -16,6 +21,7 @@ heatherStatus = False
 radioStatus = False
 rpiFanStatus = False
 configurationRead: ConfigFileParser
+
 
 def main():
     global configurationRead
@@ -44,7 +50,7 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-                    
+
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -99,6 +105,7 @@ def main():
             del client
         logger.error("Keyboard Interrupt")
 
+
 def SensorReading(dhtPin, temperatureOffset):
     read_temp = []
     read_hum = []
@@ -111,14 +118,17 @@ def SensorReading(dhtPin, temperatureOffset):
     temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
     return humidity, temperature
 
+
 def DataPublishing(client, data):
     if configurationRead.mqttActive:
         client.loop_start()
         for key, value in data.items():
-            topic = configurationRead.mqttTopic + getattr(configurationRead, key + "Channel")
+            topic = configurationRead.mqttTopic + \
+                getattr(configurationRead, key + "Channel")
             payload = json.dumps({key: value})
             client.publish(topic, payload)
     return
+
 
 def TurnOnHeather():
     global configurationRead, heatherStatus
