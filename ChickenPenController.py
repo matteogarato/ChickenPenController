@@ -29,6 +29,7 @@ def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
     GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
+    GPIO.setup(configurationRead.radioPin, GPIO.OUT)
     heather, fan = configurationRead.heatherPin.split(',')
     GPIO.setup(int(heather), GPIO.OUT)
     GPIO.setup(int(fan), GPIO.OUT)
@@ -70,7 +71,8 @@ def main():
                 if int_humidity > configurationRead.maxHumidity:
                     TurnOnFan()
 
-                if int_humidity < configurationRead.minHumidity:
+                if (int_humidity < configurationRead.minHumidity and
+                        int_temperature <= configurationRead.minTemp):
                     TurnOffFan()
 
                 data = {
@@ -121,16 +123,17 @@ def SensorReading(dhtPin, temperatureOffset):
 
 def DataPublishing(client, data):
     global configurationRead
-    logger.debug(
-        "extTem:{}, extHum:{}, intTemp:{}, intHum:{}, fanStatus:{}, heatherStatus:{}, rpiFanStatus:{}"
-        .format(data.extTemperature, data.extHumidity, data.intTemperature, data.intHumidity, fanStatus, heatherStatus, rpiFanStatus))
-    if configurationRead.mqttActive:
-        client.loop_start()
-        for key, value in data.items():
+    readData=""
+    for key, value in data.items():
+        readData+="{}:{}, ".format(key,value)
+        if configurationRead.mqttActive:
+            client.loop_start()
             topic = configurationRead.mqttTopic + \
                 getattr(configurationRead, key + "Channel")
             payload = json.dumps({key: value})
             client.publish(topic, payload)
+    logger.debug(readData)
+    
     return
 
 
