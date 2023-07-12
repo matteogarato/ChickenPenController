@@ -41,3 +41,4 @@ class ConfigFileParser:
             'MQTT', 'internalHumidityChannel')
         self.fanStatusChannel = config.get('MQTT', 'fanStatusChannel')
         self.heatherStatusChannel = config.get('MQTT', 'heatherStatusChannel')
+        self.radioChannel = config.get('MQTT', 'radioChannel')

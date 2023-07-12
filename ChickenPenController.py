@@ -39,8 +39,9 @@ def main():
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
                                configurationRead.mqttPassword)
-        client.connect(configurationRead.mqttHost)
         client.on_message = on_message
+        client.on_connect = on_connect
+        client.connect(configurationRead.mqttHost)
         client.loop_start()
     try:
         while True:
@@ -50,7 +51,6 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -120,6 +120,10 @@ def SensorReading(dhtPin, temperatureOffset):
 
 
 def DataPublishing(client, data):
+    global configurationRead
+    logger.debug(
+        "extTem:{}, extHum:{}, intTemp:{}, intHum:{}, fanStatus:{}, heatherStatus:{}, rpiFanStatus:{}"
+        .format(data.extTemperature, data.extHumidity, data.intTemperature, data.intHumidity, fanStatus, heatherStatus, rpiFanStatus))
     if configurationRead.mqttActive:
         client.loop_start()
         for key, value in data.items():
@@ -206,6 +210,12 @@ def TurnOffRadio():
     return
 
 
+def on_connect(client, userdata, flags, rc):
+    global configurationRead
+    logger.debug("Connected with result code "+str(rc))
+    client.subscribe(configurationRead.radioChannel)
+
+
 def on_message(client, userdata, message):
     logger.debug(str(message.payload.decode("utf-8")))
     mqttStatusSetter = json.loads(str(message.payload.decode("utf-8")))
@@ -222,7 +232,7 @@ if __name__ == "__main__":
         interval=1,
         backupCount=5)
     formatter = logging.Formatter(
-        '%(asctime)s program_name [%(process)d]: %(message)s',
+        '%(asctime)s Pid [%(process)d]: %(message)s',
         '%b %d %H:%M:%S')
     formatter.converter = time.localtime
     log_handler.setFormatter(formatter)
