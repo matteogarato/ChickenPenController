@@ -24,15 +24,14 @@ configurationRead: ConfigFileParser
 
 
 def main():
-    global configurationRead
+    global configurationRead, fanStatus, heatherStatus
     configurationRead = ConfigFileParser(configFilePath)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
     GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
     GPIO.setup(configurationRead.radioPin, GPIO.OUT)
-    heather, fan = configurationRead.heatherPin.split(',')
-    GPIO.setup(int(heather), GPIO.OUT)
-    GPIO.setup(int(fan), GPIO.OUT)
+    GPIO.setup(int(configurationRead.heatherPin), GPIO.OUT)
+    GPIO.setup(int(configurationRead.heatherFanPin), GPIO.OUT)
     TurnOffHeather()
     TurnOffFan()
     TurnOffRadio()
@@ -59,21 +58,24 @@ def main():
                     configurationRead.dhtPinInternal,
                     configurationRead.internalTempOffset)
 
-                if int_temperature <= configurationRead.minTemp:
-                    TurnOffFan()
+                if int_temperature < configurationRead.minTemp:
                     TurnOnHeather()
+                    if int_humidity > configurationRead.maxHumidity:
+                        TurnOffFan()
+                    else:
+                        TurnOffFan()
 
-                if (ext_temperature <= int_temperature and
-                        int_temperature >= configurationRead.maxTemp):
+                if (int_temperature < configurationRead.maxTemp and
+                        int_temperature > configurationRead.minTemp):
+                    TurnOffHeather()
+                    if int_humidity > configurationRead.maxHumidity:
+                        TurnOffFan()
+                    else:
+                        TurnOffFan()
+
+                if int_temperature > configurationRead.maxTemp:
                     TurnOffHeather()
                     TurnOnFan()
-
-                if int_humidity > configurationRead.maxHumidity:
-                    TurnOnFan()
-
-                if (int_humidity < configurationRead.minHumidity and
-                        int_temperature <= configurationRead.minTemp):
-                    TurnOffFan()
 
                 data = {
                     "extTemperature": ext_temperature,
@@ -123,17 +125,20 @@ def SensorReading(dhtPin, temperatureOffset):
 
 def DataPublishing(client, data):
     global configurationRead
-    readData=""
+    readData = ""
+    if configurationRead.mqttActive:
+        client.loop_start()
     for key, value in data.items():
-        readData+="{}:{}, ".format(key,value)
+        readData += "{}:{}, ".format(key, value)
         if configurationRead.mqttActive:
-            client.loop_start()
             topic = configurationRead.mqttTopic + \
                 getattr(configurationRead, key + "Channel")
             payload = json.dumps({key: value})
             client.publish(topic, payload)
+    if configurationRead.mqttActive:
+        client.loop_stop()
     logger.debug(readData)
-    
+
     return
 
 
@@ -141,9 +146,8 @@ def TurnOnHeather():
     global configurationRead, heatherStatus
     if not heatherStatus:
         heatherStatus = True
-        heather, fan = configurationRead.heatherPin.split(',')
-        GPIO.output(heather, GPIO.HIGH)
-        GPIO.output(fan, GPIO.HIGH)
+        GPIO.output(configurationRead.heatherPin, GPIO.HIGH)
+        GPIO.output(configurationRead.heatherFanPin, GPIO.HIGH)
         logger.debug("turning on heather")
     return
 
@@ -152,9 +156,8 @@ def TurnOffHeather():
     global configurationRead, heatherStatus
     if heatherStatus:
         heatherStatus = False
-        heather, fan = configurationRead.heatherPin.split(',')
-        GPIO.output(heather, GPIO.LOW)
-        GPIO.output(fan, GPIO.LOW)
+        GPIO.output(configurationRead.heatherPin, GPIO.LOW)
+        GPIO.output(configurationRead.heatherFanPin, GPIO.LOW)
         logger.debug("turning off heather")
     return
 
@@ -220,8 +223,9 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, message):
-    logger.debug(str(message.payload.decode("utf-8")))
-    mqttStatusSetter = json.loads(str(message.payload.decode("utf-8")))
+    msg = str(message.payload.decode("utf-8"))
+    logger.debug(msg)
+    mqttStatusSetter = json.loads(msg)
     if mqttStatusSetter.ActiveRadio:
         TurnOnRadio()
     elif mqttStatusSetter.ActiveRadio is False:
