@@ -1,6 +1,6 @@
 # ChickenPenController
 
-The Chicken Pen Controller is a Small Python project integrated with HomeAssistant designed to monitor and control temperature and humidity levels in a chicken pen. It utilizes sensors, such as the DHT22, and interacts with various components, including fans, heaters, and Raspberry Pi GPIO pins, to maintain optimal conditions for the chickens.
+The Chicken Pen Controller is a small Python project integrated with HomeAssistant designed to monitor and control temperature and humidity levels in a chicken pen. It utilizes sensors, such as the DHT22, and interacts with various components, including fans, heaters, and Raspberry Pi GPIO pins, to maintain optimal conditions for the chickens.
 
 ## Features
 
