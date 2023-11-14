@@ -146,8 +146,8 @@ def TurnOnHeather():
     global configurationRead, heatherStatus
     if not heatherStatus:
         heatherStatus = True
-        GPIO.output(configurationRead.heatherPin, GPIO.HIGH)
-        GPIO.output(configurationRead.heatherFanPin, GPIO.HIGH)
+        GPIO.output(int(configurationRead.heatherPin), GPIO.HIGH)
+        GPIO.output(int(configurationRead.heatherFanPin), GPIO.HIGH)
         logger.debug("turning on heather")
     return
 
@@ -156,8 +156,8 @@ def TurnOffHeather():
     global configurationRead, heatherStatus
     if heatherStatus:
         heatherStatus = False
-        GPIO.output(configurationRead.heatherPin, GPIO.LOW)
-        GPIO.output(configurationRead.heatherFanPin, GPIO.LOW)
+        GPIO.output(int(configurationRead.heatherPin), GPIO.LOW)
+        GPIO.output(int(configurationRead.heatherFanPin), GPIO.LOW)
         logger.debug("turning off heather")
     return
 
