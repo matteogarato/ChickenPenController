@@ -14,7 +14,7 @@ class ConfigFileParser:
         self.fanPin = config.getint('Sensor', 'fanPin')
         self.heatherPin, self.heatherFanPin = config.get(
             'Sensor', 'heatherPin').split(',')
-        self.radioPin = config.getint('Sensor', 'radioPin')
+        self.celingFanPin = config.getint('Sensor', 'celingFanPin')
         self.rpiFanPin = config.getint('Sensor', 'rpiFanPin')
         self.dhtPinInternal = config.getint('Sensor', 'dhtPinInternal')
         self.dhtPinExternal = config.getint('Sensor', 'dhtPinExternal')
@@ -30,14 +30,5 @@ class ConfigFileParser:
         self.mqttPassword = config.get('MQTT', 'password')
         self.mqttTopic = config.get('MQTT', 'topic')+"/"
         self.mqttHost = config.get('MQTT', 'host')
-        self.externalTemperatureChannel = config.get(
-            'MQTT', 'externalTemperatureChannel')
-        self.externalHumidityChannel = config.get(
-            'MQTT', 'externalHumidityChannel')
-        self.internalTemperatureChannel = config.get(
-            'MQTT', 'internalTemperatureChannel')
-        self.internalHumidityChannel = config.get(
-            'MQTT', 'internalHumidityChannel')
-        self.fanStatusChannel = config.get('MQTT', 'fanStatusChannel')
-        self.heatherStatusChannel = config.get('MQTT', 'heatherStatusChannel')
-        self.radioChannel = config.get('MQTT', 'radioChannel')
+        self.ChickenPenTopic = config.get(
+            'MQTT', 'ChickenPenTopic')

@@ -18,7 +18,7 @@ configFilePath = os.path.join(
 
 fanStatus = False
 heatherStatus = False
-radioStatus = False
+celingFanStatus = False
 rpiFanStatus = False
 configurationRead: ConfigFileParser
 
@@ -29,23 +29,22 @@ def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
     GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
-    GPIO.setup(configurationRead.radioPin, GPIO.OUT)
+    GPIO.setup(configurationRead.celingFanPin, GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherPin), GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherFanPin), GPIO.OUT)
     TurnOffHeather()
     TurnOffFan()
-    TurnOffRadio()
+    TurnOffCelingFan()
     client = mqtt.Client()
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
                                configurationRead.mqttPassword)
         client.on_message = on_message
         client.on_connect = on_connect
-        client.connect(configurationRead.mqttHost)
-        client.loop_start()
     try:
         while True:
             try:
+                configurationRead = ConfigFileParser(configFilePath)
                 cpu_temp = CPUTemperature().temperature
                 if cpu_temp > 40:
                     TurnOnRpiFan()
@@ -62,20 +61,25 @@ def main():
                     TurnOnHeather()
                     if int_humidity > configurationRead.maxHumidity:
                         TurnOffFan()
+                        TurnOffCelingFan()
                     else:
                         TurnOffFan()
+                        TurnOffCelingFan()
 
                 if (int_temperature < configurationRead.maxTemp and
                         int_temperature > configurationRead.minTemp):
                     TurnOffHeather()
                     if int_humidity > configurationRead.maxHumidity:
                         TurnOffFan()
+                        TurnOffCelingFan()
                     else:
                         TurnOffFan()
+                        TurnOffCelingFan()
 
                 if int_temperature > configurationRead.maxTemp:
                     TurnOffHeather()
                     TurnOnFan()
+                    TurnOnCelingFan()
 
                 data = {
                     "extTemperature": ext_temperature,
@@ -86,10 +90,17 @@ def main():
                     "heatherStatus": heatherStatus,
                     "rpiFanStatus": rpiFanStatus
                 }
-                DataPublishing(client, data)
-
+                payload = json.dumps(data)
+                logger.debug("payload: " + payload)
+                topic = configurationRead.ChickenPenTopic
+                logger.debug("topic: " + topic)
+                # if configurationRead.mqttActive:
+                #     client.connect(configurationRead.mqttHost)
+                #     client.loop_start()
+                #     client.publish(topic, payload)
+                #     client.loop_stop()
+                #     client.disconnect()
                 time.sleep(60 / configurationRead.refreshRate)
-
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
 
             except KeyboardInterrupt:
@@ -121,26 +132,6 @@ def SensorReading(dhtPin, temperatureOffset):
     humidity = sum(read_hum) // len(read_hum)
     temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
     return humidity, temperature
-
-
-def DataPublishing(client, data):
-    global configurationRead
-    readData = ""
-    if configurationRead.mqttActive:
-        client.loop_start()
-    for key, value in data.items():
-        readData += "{}:{}, ".format(key, value)
-        if configurationRead.mqttActive:
-            topic = configurationRead.mqttTopic + \
-                getattr(configurationRead, key + "Channel")
-            payload = json.dumps({key: value})
-            client.publish(topic, payload)
-    if configurationRead.mqttActive:
-        client.loop_stop()
-    logger.debug(readData)
-
-    return
-
 
 def TurnOnHeather():
     global configurationRead, heatherStatus
@@ -198,38 +189,38 @@ def TurnOffRpiFan():
     return
 
 
-def TurnOnRadio():
-    global configurationRead, radioStatus
-    if not radioStatus:
-        radioStatus = True
-        GPIO.output(configurationRead.radioPin, GPIO.HIGH)
-        logger.debug("turning on radio")
+def TurnOnCelingFan():
+    global configurationRead, celingFanStatus
+    if not celingFanStatus:
+        celingFanStatus = True
+        GPIO.output(configurationRead.celingFanPin, GPIO.HIGH)
+        logger.debug("turning on celingFan")
     return
 
 
-def TurnOffRadio():
-    global configurationRead, radioStatus
-    if radioStatus:
-        radioStatus = False
-        GPIO.output(configurationRead.radioPin, GPIO.LOW)
-        logger.debug("turning off radio")
+def TurnOffCelingFan():
+    global configurationRead, celingFanStatus
+    if celingFanStatus:
+        celingFanStatus = False
+        GPIO.output(configurationRead.celingFanPin, GPIO.LOW)
+        logger.debug("turning off celingFan")
     return
 
 
 def on_connect(client, userdata, flags, rc):
     global configurationRead
     logger.debug("Connected with result code "+str(rc))
-    client.subscribe(configurationRead.radioChannel)
+    client.subscribe(configurationRead.celingFanChannel)
 
 
 def on_message(client, userdata, message):
     msg = str(message.payload.decode("utf-8"))
     logger.debug(msg)
     mqttStatusSetter = json.loads(msg)
-    if mqttStatusSetter.ActiveRadio:
-        TurnOnRadio()
-    elif mqttStatusSetter.ActiveRadio is False:
-        TurnOffRadio()
+    if mqttStatusSetter.ActiveCelingFan:
+        TurnOnCelingFan()
+    elif mqttStatusSetter.ActiveCelingFan is False:
+        TurnOffCelingFan()
 
 
 if __name__ == "__main__":
