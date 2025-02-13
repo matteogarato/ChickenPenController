@@ -35,7 +35,7 @@ def main():
     TurnOffHeather()
     TurnOffFan()
     TurnOffCelingFan()
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
                                configurationRead.mqttPassword)
