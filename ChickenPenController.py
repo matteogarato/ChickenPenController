@@ -50,7 +50,7 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-                    
+
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -58,49 +58,52 @@ def main():
                     configurationRead.dhtPinInternal,
                     configurationRead.internalTempOffset)
 
-                if int_temperature < configurationRead.minTemp:
-                    TurnOnHeather()
-                    if int_humidity > configurationRead.maxHumidity:
-                        TurnOffFan()
-                        TurnOffCelingFan()
-                    else:
-                        TurnOffFan()
-                        TurnOffCelingFan()
+                if ext_humidity is None or ext_temperature is None or int_humidity is None or int_temperature is None:
+                    logger.error("Invalid sensor reading")
+                else:
+                    if int_temperature < configurationRead.minTemp:
+                        TurnOnHeather()
+                        if int_humidity > configurationRead.maxHumidity:
+                            TurnOffFan()
+                            TurnOffCelingFan()
+                        else:
+                            TurnOffFan()
+                            TurnOffCelingFan()
 
-                if (int_temperature < configurationRead.maxTemp and
-                        int_temperature > configurationRead.minTemp):
-                    TurnOffHeather()
-                    if int_humidity > configurationRead.maxHumidity:
-                        TurnOffFan()
-                        TurnOffCelingFan()
-                    else:
-                        TurnOffFan()
-                        TurnOffCelingFan()
+                    if (int_temperature < configurationRead.maxTemp and
+                            int_temperature > configurationRead.minTemp):
+                        TurnOffHeather()
+                        if int_humidity > configurationRead.maxHumidity:
+                            TurnOffFan()
+                            TurnOffCelingFan()
+                        else:
+                            TurnOffFan()
+                            TurnOffCelingFan()
 
-                if int_temperature > configurationRead.maxTemp:
-                    TurnOffHeather()
-                    TurnOnFan()
-                    TurnOnCelingFan()
+                    if int_temperature > configurationRead.maxTemp:
+                        TurnOffHeather()
+                        TurnOnFan()
+                        TurnOnCelingFan()
 
-                data = {
-                    "extTemperature": ext_temperature,
-                    "extHumidity": ext_humidity,
-                    "intTemperature": int_temperature,
-                    "intHumidity": int_humidity,
-                    "fanStatus": fanStatus,
-                    "heatherStatus": heatherStatus,
-                    "rpiFanStatus": rpiFanStatus
-                }
-                payload = json.dumps(data)
-                logger.debug("payload: " + payload)
-                topic = configurationRead.ChickenPenTopic
-                logger.debug("topic: " + topic)
-                # if configurationRead.mqttActive:
-                #     client.connect(configurationRead.mqttHost)
-                #     client.loop_start()
-                #     client.publish(topic, payload)
-                #     client.loop_stop()
-                #     client.disconnect()
+                    data = {
+                        "extTemperature": ext_temperature,
+                        "extHumidity": ext_humidity,
+                        "intTemperature": int_temperature,
+                        "intHumidity": int_humidity,
+                        "fanStatus": fanStatus,
+                        "heatherStatus": heatherStatus,
+                        "rpiFanStatus": rpiFanStatus
+                    }
+                    payload = json.dumps(data)
+                    logger.debug("payload: " + payload)
+                    topic = configurationRead.ChickenPenTopic
+                    logger.debug("topic: " + topic)
+                    # if configurationRead.mqttActive:
+                    #     client.connect(configurationRead.mqttHost)
+                    #     client.loop_start()
+                    #     client.publish(topic, payload)
+                    #     client.loop_stop()
+                    #     client.disconnect()
                 time.sleep(60 / configurationRead.refreshRate)
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
 
@@ -132,9 +135,9 @@ def SensorReading(dhtPin, temperatureOffset):
             read_hum.append(int(hum))
     humidity = None
     temperature = None
-    if len(read_hum) is not 0:
+    if len(read_hum) != 0:
         humidity = sum(read_hum) // len(read_hum)
-    if len(read_temp) is not 0:
+    if len(read_temp) != 0:
         temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
     return humidity, temperature
 
