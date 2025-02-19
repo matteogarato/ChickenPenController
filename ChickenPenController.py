@@ -233,6 +233,7 @@ def on_message(client, userdata, message):
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
     log_handler = logging.handlers.TimedRotatingFileHandler(
         logFileName,
         when="d",
@@ -245,5 +246,5 @@ if __name__ == "__main__":
     log_handler.setFormatter(formatter)
     logger = logging.getLogger('ChickenPenController')
     logger.addHandler(log_handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     main()
