@@ -44,8 +44,10 @@ def main():
     try:
         while True:
             try:
+                logger.info("start of cicle")
                 configurationRead = ConfigFileParser(configFilePath)
                 cpu_temp = CPUTemperature().temperature
+                logger.info(f"cpu temp:{cpu_temp}")
                 if cpu_temp > 40:
                     TurnOnRpiFan()
                 else:
@@ -106,7 +108,7 @@ def main():
                     #     client.disconnect()
                 time.sleep(60 / configurationRead.refreshRate)
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
-
+                logger.info("end of cicle")
             except KeyboardInterrupt:
                 break
 
