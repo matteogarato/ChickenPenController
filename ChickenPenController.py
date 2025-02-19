@@ -50,6 +50,7 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
+                    
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -129,9 +130,14 @@ def SensorReading(dhtPin, temperatureOffset):
         if hum is not None and tmp is not None:
             read_temp.append(int(tmp))
             read_hum.append(int(hum))
-    humidity = sum(read_hum) // len(read_hum)
-    temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
+    humidity = None
+    temperature = None
+    if len(read_hum) is not 0:
+        humidity = sum(read_hum) // len(read_hum)
+    if len(read_temp) is not 0:
+        temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
     return humidity, temperature
+
 
 def TurnOnHeather():
     global configurationRead, heatherStatus
