@@ -100,12 +100,12 @@ def main():
                     logger.debug("payload: " + payload)
                     topic = configurationRead.ChickenPenTopic
                     logger.debug("topic: " + topic)
-                    # if configurationRead.mqttActive:
-                    #     client.connect(configurationRead.mqttHost)
-                    #     client.loop_start()
-                    #     client.publish(topic, payload)
-                    #     client.loop_stop()
-                    #     client.disconnect()
+                    if configurationRead.mqttActive:
+                        client.connect(configurationRead.mqttHost)
+                        client.loop_start()
+                        client.publish(topic, payload)
+                        client.loop_stop()
+                        client.disconnect()
                 time.sleep(60 / configurationRead.refreshRate)
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
                 logger.info("end of cicle")

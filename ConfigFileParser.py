@@ -28,7 +28,6 @@ class ConfigFileParser:
         self.mqttActive = config.getboolean('MQTT', 'mqttActive')
         self.mqttUser = config.get('MQTT', 'user')
         self.mqttPassword = config.get('MQTT', 'password')
-        self.mqttTopic = config.get('MQTT', 'topic')+"/"
         self.mqttHost = config.get('MQTT', 'host')
         self.ChickenPenTopic = config.get(
             'MQTT', 'ChickenPenTopic')
