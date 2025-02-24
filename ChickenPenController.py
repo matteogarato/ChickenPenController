@@ -219,15 +219,15 @@ def TurnOffCelingFan():
     return
 
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, reasonCode, properties=None):
     global configurationRead, mqttConnected
-    if rc == 0:
+    if reasonCode == 0:
         mqttConnected = True
         logger.debug("Mqtt not connected")
         client.loop_start()
         client.subscribe(configurationRead.celingFanChannel)
     else:
-        logger.warning("Mqtt not connected, rc: "+str(rc))
+        logger.warning("Mqtt not connected, reasonCode: "+str(reasonCode))
         time.sleep(5)
         client.connect(configurationRead.mqttHost)
 
