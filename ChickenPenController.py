@@ -20,11 +20,12 @@ fanStatus = False
 heatherStatus = False
 celingFanStatus = False
 rpiFanStatus = False
+mqttConnected = False
 configurationRead: ConfigFileParser
 
 
 def main():
-    global configurationRead, fanStatus, heatherStatus
+    global configurationRead, fanStatus, heatherStatus, mqttConnected
     configurationRead = ConfigFileParser(configFilePath)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
@@ -47,7 +48,7 @@ def main():
     try:
         while True:
             try:
-                logger.info("start of cicle")
+                logger.info("start of cycle")
                 configurationRead = ConfigFileParser(configFilePath)
                 cpu_temp = CPUTemperature().temperature
                 logger.info(f"cpu temp:{cpu_temp}")
@@ -55,7 +56,7 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-                
+
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -103,12 +104,12 @@ def main():
                     logger.debug("payload: " + payload)
                     topic = configurationRead.ChickenPenTopic
                     logger.debug("topic: " + topic)
-                    if configurationRead.mqttActive:                                           
+                    if configurationRead.mqttActive and mqttConnected:
                         client.publish(topic, payload)
                         time.sleep(1)
                 time.sleep(60 / configurationRead.refreshRate)
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
-                logger.info("end of cicle")
+                logger.info("end of cycle")
             except KeyboardInterrupt:
                 break
 
@@ -219,13 +220,23 @@ def TurnOffCelingFan():
 
 
 def on_connect(client, userdata, flags, rc):
-    global configurationRead
-    logger.debug("Connected with result code "+str(rc))
-    client.loop_start()
-    client.subscribe(configurationRead.celingFanChannel)
+    global configurationRead, mqttConnected
+    if rc == 0:
+        mqttConnected = True
+        logger.debug("Mqtt not connected")
+        client.loop_start()
+        client.subscribe(configurationRead.celingFanChannel)
+    else:
+        logger.warning("Mqtt not connected, rc: "+str(rc))
+        time.sleep(5)
+        client.connect(configurationRead.mqttHost)
+
 
 def on_disconnect(client, userdata, rc):
-   client.connect(configurationRead.mqttHost)
+    global configurationRead, mqttConnected
+    mqttConnected = False
+    client.connect(configurationRead.mqttHost)
+
 
 def on_message(client, userdata, message):
     msg = str(message.payload.decode("utf-8"))
