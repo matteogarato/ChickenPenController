@@ -225,14 +225,14 @@ def on_connect(client, userdata, flags, reasonCode, properties=None):
         mqttConnected = True
         logger.debug("Mqtt not connected")
         client.loop_start()
-        client.subscribe(configurationRead.celingFanChannel)
+        #client.subscribe(configurationRead.celingFanChannel)
     else:
         logger.warning("Mqtt not connected, reasonCode: "+str(reasonCode))
         time.sleep(5)
         client.connect(configurationRead.mqttHost)
 
 
-def on_disconnect(client, userdata, rc):
+def on_disconnect(client, userdata, flags, reasonCode, properties=None):
     global configurationRead, mqttConnected
     mqttConnected = False
     client.connect(configurationRead.mqttHost)
