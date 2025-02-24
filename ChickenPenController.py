@@ -108,7 +108,6 @@ def main():
                         client.publish(topic, payload)
                         time.sleep(1)
                 time.sleep(60 / configurationRead.refreshRate)
-                del ext_humidity, ext_temperature, int_humidity, int_temperature
                 logger.info("end of cycle")
             except KeyboardInterrupt:
                 break
@@ -117,14 +116,14 @@ def main():
                 if configurationRead.mqttActive:
                     client.loop_stop()
                     client.disconnect()
-                    del client
+                GPIO.cleanup()
                 logger.error(ex)
 
     finally:
         if configurationRead.mqttActive:
             client.loop_stop()
             client.disconnect()
-            del client
+        GPIO.cleanup()
         logger.error("Keyboard Interrupt")
 
 
