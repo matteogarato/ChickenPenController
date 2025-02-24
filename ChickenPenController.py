@@ -41,6 +41,9 @@ def main():
                                configurationRead.mqttPassword)
         client.on_message = on_message
         client.on_connect = on_connect
+        client.on_disconnect = on_disconnect
+        client.connect(configurationRead.mqttHost)
+        client.loop_start()
     try:
         while True:
             try:
@@ -52,7 +55,7 @@ def main():
                     TurnOnRpiFan()
                 else:
                     TurnOffRpiFan()
-
+                
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
                     configurationRead.externalTempOffset)
@@ -100,12 +103,9 @@ def main():
                     logger.debug("payload: " + payload)
                     topic = configurationRead.ChickenPenTopic
                     logger.debug("topic: " + topic)
-                    if configurationRead.mqttActive:
-                        client.connect(configurationRead.mqttHost)
-                        client.loop_start()
+                    if configurationRead.mqttActive:                                           
                         client.publish(topic, payload)
-                        client.loop_stop()
-                        client.disconnect()
+                        time.sleep(1)
                 time.sleep(60 / configurationRead.refreshRate)
                 del ext_humidity, ext_temperature, int_humidity, int_temperature
                 logger.info("end of cicle")
@@ -221,8 +221,11 @@ def TurnOffCelingFan():
 def on_connect(client, userdata, flags, rc):
     global configurationRead
     logger.debug("Connected with result code "+str(rc))
+    client.loop_start()
     client.subscribe(configurationRead.celingFanChannel)
 
+def on_disconnect(client, userdata, rc):
+   client.connect(configurationRead.mqttHost)
 
 def on_message(client, userdata, message):
     msg = str(message.payload.decode("utf-8"))
