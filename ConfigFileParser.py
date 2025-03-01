@@ -14,7 +14,7 @@ class ConfigFileParser:
         self.fanPin = config.getint('Sensor', 'fanPin')
         self.heatherPin, self.heatherFanPin = config.get(
             'Sensor', 'heatherPin').split(',')
-        self.celingFanPin = config.getint('Sensor', 'celingFanPin')
+        self.remoteRelayPin = config.getint('Sensor', 'remoteRelayPin')
         self.rpiFanPin = config.getint('Sensor', 'rpiFanPin')
         self.dhtPinInternal = config.getint('Sensor', 'dhtPinInternal')
         self.dhtPinExternal = config.getint('Sensor', 'dhtPinExternal')
@@ -29,5 +29,5 @@ class ConfigFileParser:
         self.mqttUser = config.get('MQTT', 'user')
         self.mqttPassword = config.get('MQTT', 'password')
         self.mqttHost = config.get('MQTT', 'host')
-        self.ChickenPenTopic = config.get(
-            'MQTT', 'ChickenPenTopic')
+        self.remoteRelayTopic = config.get('MQTT', 'remoteRelayTopic')
+        self.chickenPenTopic = config.get('MQTT', 'chickenPenTopic')

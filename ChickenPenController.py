@@ -18,7 +18,7 @@ configFilePath = os.path.join(
 
 fanStatus = False
 heatherStatus = False
-celingFanStatus = False
+remoteRelayStatus = False
 rpiFanStatus = False
 mqttConnected = False
 configurationRead: ConfigFileParser
@@ -30,12 +30,12 @@ def main():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
     GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
-    GPIO.setup(configurationRead.celingFanPin, GPIO.OUT)
+    GPIO.setup(configurationRead.remoteRelayPin, GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherPin), GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherFanPin), GPIO.OUT)
     TurnOffHeather()
     TurnOffFan()
-    TurnOffCelingFan()
+    TurnOffRemoteRelay()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
@@ -71,25 +71,25 @@ def main():
                         TurnOnHeather()
                         if int_humidity > configurationRead.maxHumidity:
                             TurnOffFan()
-                            TurnOffCelingFan()
+                            TurnOffRemoteRelay()
                         else:
                             TurnOffFan()
-                            TurnOffCelingFan()
+                            TurnOffRemoteRelay()
 
                     if (int_temperature < configurationRead.maxTemp and
                             int_temperature > configurationRead.minTemp):
                         TurnOffHeather()
                         if int_humidity > configurationRead.maxHumidity:
                             TurnOffFan()
-                            TurnOffCelingFan()
+                            TurnOffRemoteRelay()
                         else:
                             TurnOffFan()
-                            TurnOffCelingFan()
+                            TurnOffRemoteRelay()
 
                     if int_temperature > configurationRead.maxTemp:
                         TurnOffHeather()
                         TurnOnFan()
-                        TurnOnCelingFan()
+                        TurnOnRemoteRelay()
 
                     data = {
                         "extTemperature": ext_temperature,
@@ -102,7 +102,7 @@ def main():
                     }
                     payload = json.dumps(data)
                     logger.debug("payload: " + payload)
-                    topic = configurationRead.ChickenPenTopic
+                    topic = configurationRead.chickenPenTopic
                     logger.debug("topic: " + topic)
                     if configurationRead.mqttActive and mqttConnected:
                         client.publish(topic, payload)
@@ -200,21 +200,21 @@ def TurnOffRpiFan():
     return
 
 
-def TurnOnCelingFan():
-    global configurationRead, celingFanStatus
-    if not celingFanStatus:
-        celingFanStatus = True
-        GPIO.output(configurationRead.celingFanPin, GPIO.HIGH)
-        logger.debug("turning on celingFan")
+def TurnOnRemoteRelay():
+    global configurationRead, remoteRelayStatus
+    if not remoteRelayStatus:
+        remoteRelayStatus = True
+        GPIO.output(configurationRead.remoteRelayPin, GPIO.HIGH)
+        logger.debug("turning on remote relay")
     return
 
 
-def TurnOffCelingFan():
-    global configurationRead, celingFanStatus
-    if celingFanStatus:
-        celingFanStatus = False
-        GPIO.output(configurationRead.celingFanPin, GPIO.LOW)
-        logger.debug("turning off celingFan")
+def TurnOffRemoteRelay():
+    global configurationRead, remoteRelayStatus
+    if remoteRelayStatus:
+        remoteRelayStatus = False
+        GPIO.output(configurationRead.remoteRelayPin, GPIO.LOW)
+        logger.debug("turning off remote relay")
     return
 
 
@@ -224,7 +224,7 @@ def on_connect(client, userdata, flags, reasonCode, properties=None):
         mqttConnected = True
         logger.debug("Mqtt not connected")
         client.loop_start()
-        #client.subscribe(configurationRead.celingFanChannel)
+        client.subscribe(configurationRead.remoteRelayTopic)
     else:
         logger.warning("Mqtt not connected, reasonCode: "+str(reasonCode))
         time.sleep(5)
@@ -233,6 +233,7 @@ def on_connect(client, userdata, flags, reasonCode, properties=None):
 
 def on_disconnect(client, userdata, flags, reasonCode, properties=None):
     global configurationRead, mqttConnected
+    logger.debug("Mqtt on_disconnect")
     mqttConnected = False
     client.connect(configurationRead.mqttHost)
 
@@ -242,9 +243,9 @@ def on_message(client, userdata, message):
     logger.debug(msg)
     mqttStatusSetter = json.loads(msg)
     if mqttStatusSetter.ActiveCelingFan:
-        TurnOnCelingFan()
+        TurnOnRemoteRelay()
     elif mqttStatusSetter.ActiveCelingFan is False:
-        TurnOffCelingFan()
+        TurnOffRemoteRelay()
 
 
 if __name__ == "__main__":
