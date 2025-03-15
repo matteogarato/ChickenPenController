@@ -22,10 +22,11 @@ remoteRelayStatus = False
 rpiFanStatus = False
 mqttConnected = False
 configurationRead: ConfigFileParser
+logger = logging.getLogger('ChickenPenController')
 
 
 def main():
-    global configurationRead, fanStatus, heatherStatus, mqttConnected
+    global configurationRead, fanStatus, heatherStatus, mqttConnected, logger
     configurationRead = ConfigFileParser(configFilePath)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
@@ -145,7 +146,7 @@ def SensorReading(dhtPin, temperatureOffset):
 
 
 def TurnOnHeather():
-    global configurationRead, heatherStatus
+    global configurationRead, heatherStatus, logger
     if not heatherStatus:
         heatherStatus = True
         GPIO.output(int(configurationRead.heatherPin), GPIO.HIGH)
@@ -155,7 +156,7 @@ def TurnOnHeather():
 
 
 def TurnOffHeather():
-    global configurationRead, heatherStatus
+    global configurationRead, heatherStatus, logger
     if heatherStatus:
         heatherStatus = False
         GPIO.output(int(configurationRead.heatherPin), GPIO.LOW)
@@ -165,7 +166,7 @@ def TurnOffHeather():
 
 
 def TurnOnFan():
-    global configurationRead, fanStatus
+    global configurationRead, fanStatus, logger
     if not fanStatus:
         fanStatus = True
         GPIO.output(configurationRead.fanPin, GPIO.HIGH)
@@ -174,7 +175,7 @@ def TurnOnFan():
 
 
 def TurnOffFan():
-    global configurationRead, fanStatus
+    global configurationRead, fanStatus, logger
     if fanStatus:
         fanStatus = False
         GPIO.output(configurationRead.fanPin, GPIO.LOW)
@@ -183,7 +184,7 @@ def TurnOffFan():
 
 
 def TurnOnRpiFan():
-    global configurationRead, rpiFanStatus
+    global configurationRead, rpiFanStatus, logger
     if not rpiFanStatus:
         rpiFanStatus = True
         GPIO.output(configurationRead.rpiFanPin, GPIO.HIGH)
@@ -192,7 +193,7 @@ def TurnOnRpiFan():
 
 
 def TurnOffRpiFan():
-    global configurationRead, rpiFanStatus
+    global configurationRead, rpiFanStatus, logger
     if rpiFanStatus:
         rpiFanStatus = False
         GPIO.output(configurationRead.rpiFanPin, GPIO.LOW)
@@ -201,7 +202,7 @@ def TurnOffRpiFan():
 
 
 def TurnOnRemoteRelay():
-    global configurationRead, remoteRelayStatus
+    global configurationRead, remoteRelayStatus, logger
     if not remoteRelayStatus:
         remoteRelayStatus = True
         GPIO.output(configurationRead.remoteRelayPin, GPIO.HIGH)
@@ -210,7 +211,7 @@ def TurnOnRemoteRelay():
 
 
 def TurnOffRemoteRelay():
-    global configurationRead, remoteRelayStatus
+    global configurationRead, remoteRelayStatus, logger
     if remoteRelayStatus:
         remoteRelayStatus = False
         GPIO.output(configurationRead.remoteRelayPin, GPIO.LOW)
@@ -219,7 +220,7 @@ def TurnOffRemoteRelay():
 
 
 def on_connect(client, userdata, flags, reasonCode, properties=None):
-    global configurationRead, mqttConnected
+    global configurationRead, mqttConnected, logger
     if reasonCode == 0:
         mqttConnected = True
         logger.debug("Mqtt not connected")
@@ -232,13 +233,14 @@ def on_connect(client, userdata, flags, reasonCode, properties=None):
 
 
 def on_disconnect(client, userdata, flags, reasonCode, properties=None):
-    global configurationRead, mqttConnected
+    global configurationRead, mqttConnected, logger
     logger.debug("Mqtt on_disconnect")
     mqttConnected = False
     client.connect(configurationRead.mqttHost)
 
 
 def on_message(client, userdata, message):
+    global logger
     msg = str(message.payload.decode("utf-8"))
     logger.debug(msg)
     mqttStatusSetter = json.loads(msg)
@@ -260,7 +262,6 @@ if __name__ == "__main__":
         '%b %d %H:%M:%S')
     formatter.converter = time.localtime
     log_handler.setFormatter(formatter)
-    logger = logging.getLogger('ChickenPenController')
     logger.addHandler(log_handler)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     main()
