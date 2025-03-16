@@ -34,9 +34,9 @@ def main():
     GPIO.setup(configurationRead.remoteRelayPin, GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherPin), GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherFanPin), GPIO.OUT)
-    TurnOffHeather()
-    TurnOffFan()
-    TurnOffRemoteRelay()
+    TurnHeather(False)
+    TurnFan(False)
+    TurnRemoteRelay(False)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
@@ -53,10 +53,7 @@ def main():
                 configurationRead = ConfigFileParser(configFilePath)
                 cpu_temp = CPUTemperature().temperature
                 logger.info(f"cpu temp:{cpu_temp}")
-                if cpu_temp > 40:
-                    TurnOnRpiFan()
-                else:
-                    TurnOffRpiFan()
+                TurnRpiFan(cpu_temp > 40)
 
                 ext_humidity, ext_temperature = SensorReading(
                     configurationRead.dhtPinExternal,
@@ -69,28 +66,17 @@ def main():
                     logger.error("Invalid sensor reading")
                 else:
                     if int_temperature < configurationRead.minTemp:
-                        TurnOnHeather()
-                        if int_humidity > configurationRead.maxHumidity:
-                            TurnOffFan()
-                            TurnOffRemoteRelay()
-                        else:
-                            TurnOffFan()
-                            TurnOffRemoteRelay()
+                        TurnHeather(True)
+                        TurnFan(int_humidity > configurationRead.maxHumidity)
 
                     if (int_temperature < configurationRead.maxTemp and
                             int_temperature > configurationRead.minTemp):
-                        TurnOffHeather()
-                        if int_humidity > configurationRead.maxHumidity:
-                            TurnOffFan()
-                            TurnOffRemoteRelay()
-                        else:
-                            TurnOffFan()
-                            TurnOffRemoteRelay()
+                        TurnHeather(False)
+                        TurnFan(int_humidity > configurationRead.maxHumidity)
 
                     if int_temperature > configurationRead.maxTemp:
-                        TurnOffHeather()
-                        TurnOnFan()
-                        TurnOnRemoteRelay()
+                        TurnHeather(False)
+                        TurnFan(True)
 
                     data = {
                         "extTemperature": ext_temperature,
@@ -145,77 +131,45 @@ def SensorReading(dhtPin, temperatureOffset):
     return humidity, temperature
 
 
-def TurnOnHeather():
+def TurnHeather(status):
     global configurationRead, heatherStatus, logger
-    if not heatherStatus:
-        heatherStatus = True
-        GPIO.output(int(configurationRead.heatherPin), GPIO.HIGH)
-        GPIO.output(int(configurationRead.heatherFanPin), GPIO.HIGH)
-        logger.debug("turning on heather")
+    if heatherStatus != status:
+        heatherStatus = not heatherStatus
+        GPIO.output(int(configurationRead.heatherPin),
+                    heatherStatus if GPIO.HIGH else GPIO.LOW)
+        GPIO.output(int(configurationRead.heatherFanPin),
+                    heatherStatus if GPIO.HIGH else GPIO.LOW)
+        logger.debug(f"turning heather status : {heatherStatus}")
     return
 
 
-def TurnOffHeather():
-    global configurationRead, heatherStatus, logger
-    if heatherStatus:
-        heatherStatus = False
-        GPIO.output(int(configurationRead.heatherPin), GPIO.LOW)
-        GPIO.output(int(configurationRead.heatherFanPin), GPIO.LOW)
-        logger.debug("turning off heather")
-    return
-
-
-def TurnOnFan():
+def TurnFan(status):
     global configurationRead, fanStatus, logger
-    if not fanStatus:
-        fanStatus = True
-        GPIO.output(configurationRead.fanPin, GPIO.HIGH)
-        logger.debug("turning on fan")
+    if fanStatus != status:
+        fanStatus = not fanStatus
+        GPIO.output(configurationRead.fanPin,
+                    fanStatus if GPIO.HIGH else GPIO.LOW)
+        logger.debug(f"turning fan status: {fanStatus}")
     return
 
 
-def TurnOffFan():
-    global configurationRead, fanStatus, logger
-    if fanStatus:
-        fanStatus = False
-        GPIO.output(configurationRead.fanPin, GPIO.LOW)
-        logger.debug("turning off fan")
-    return
-
-
-def TurnOnRpiFan():
+def TurnRpiFan(status):
     global configurationRead, rpiFanStatus, logger
-    if not rpiFanStatus:
-        rpiFanStatus = True
-        GPIO.output(configurationRead.rpiFanPin, GPIO.HIGH)
-        logger.debug("turning on rpi fan")
+    if rpiFanStatus != status:
+        rpiFanStatus = not rpiFanStatus
+        GPIO.output(configurationRead.rpiFanPin,
+                    rpiFanStatus if GPIO.HIGH else GPIO.LOW)
+        logger.debug(f"turning rpi fan status: {rpiFanStatus}")
     return
 
 
-def TurnOffRpiFan():
-    global configurationRead, rpiFanStatus, logger
-    if rpiFanStatus:
-        rpiFanStatus = False
-        GPIO.output(configurationRead.rpiFanPin, GPIO.LOW)
-        logger.debug("turning off rpi fan")
-    return
-
-
-def TurnOnRemoteRelay():
+def TurnRemoteRelay(status):
     global configurationRead, remoteRelayStatus, logger
-    if not remoteRelayStatus:
-        remoteRelayStatus = True
-        GPIO.output(configurationRead.remoteRelayPin, GPIO.HIGH)
-        logger.debug("turning on remote relay")
-    return
-
-
-def TurnOffRemoteRelay():
-    global configurationRead, remoteRelayStatus, logger
-    if remoteRelayStatus:
-        remoteRelayStatus = False
-        GPIO.output(configurationRead.remoteRelayPin, GPIO.LOW)
-        logger.debug("turning off remote relay")
+    if remoteRelayStatus != status:
+        remoteRelayStatus = not remoteRelayStatus
+        GPIO.output(configurationRead.remoteRelayPin,
+                    remoteRelayStatus if GPIO.HIGH else GPIO.LOW)
+        logger.debug(f"turning remote relay status: {remoteRelayStatus}")
     return
 
 
@@ -244,10 +198,7 @@ def on_message(client, userdata, message):
     msg = str(message.payload.decode("utf-8"))
     logger.debug(msg)
     mqttStatusSetter = json.loads(msg)
-    if mqttStatusSetter.ActiveCelingFan:
-        TurnOnRemoteRelay()
-    elif mqttStatusSetter.ActiveCelingFan is False:
-        TurnOffRemoteRelay()
+    TurnRemoteRelay(mqttStatusSetter.ActiveRemoteRelay)
 
 
 if __name__ == "__main__":
