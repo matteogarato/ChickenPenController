@@ -3,7 +3,7 @@ import time
 import json
 import logging
 import logging.handlers
-import Adafruit_DHT
+import adafruit_dht
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 from gpiozero import CPUTemperature
@@ -12,7 +12,6 @@ from ConfigFileParser import ConfigFileParser
 
 logFileName = "ChickenPenController.log"
 
-dhtSensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'ChickenPenController.config')
 
@@ -23,7 +22,6 @@ rpiFanStatus = False
 mqttConnected = False
 configurationRead: ConfigFileParser
 logger = logging.getLogger('ChickenPenController')
-
 
 def main():
     global configurationRead, fanStatus, heatherStatus, mqttConnected, logger
@@ -117,11 +115,17 @@ def main():
 def SensorReading(dhtPin, temperatureOffset):
     read_temp = []
     read_hum = []
+    dht_device = adafruit_dht.DHT22(dhtPin, use_pulseio=False)
     for _ in range(5):
-        hum, tmp = Adafruit_DHT.read_retry(dhtSensor, dhtPin, 5)
-        if hum is not None and tmp is not None:
-            read_temp.append(int(tmp))
-            read_hum.append(int(hum))
+        time.sleep(2.0)
+        try:
+            read_temp.append(int(dht_device.temperature))
+            read_hum.append(int(dht_device.humidity))
+        except RuntimeError as error:
+            # Errors happen fairly often, DHT's are hard to read, just keep going
+            print(error.args[0])
+            time.sleep(2.0)
+            continue
     humidity = None
     temperature = None
     if len(read_hum) != 0:
