@@ -3,7 +3,8 @@ import time
 import json
 import logging
 import logging.handlers
-import Adafruit_DHT
+import adafruit_dht
+import board
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 from gpiozero import CPUTemperature
@@ -12,7 +13,6 @@ from ConfigFileParser import ConfigFileParser
 
 logFileName = "ChickenPenController.log"
 
-dhtSensor = Adafruit_DHT.DHT22
 configFilePath = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'ChickenPenController.config')
 
@@ -21,9 +21,10 @@ heatherStatus = False
 remoteRelayStatus = False
 rpiFanStatus = False
 mqttConnected = False
+dht_ext_device = adafruit_dht.DHT22(board.D4)
+dht_int_device = adafruit_dht.DHT22(board.D5)
 configurationRead: ConfigFileParser
 logger = logging.getLogger('ChickenPenController')
-
 
 def main():
     global configurationRead, fanStatus, heatherStatus, mqttConnected, logger
@@ -55,11 +56,9 @@ def main():
                 logger.info(f"cpu temp:{cpu_temp}")
                 TurnRpiFan(cpu_temp > 40)
 
-                ext_humidity, ext_temperature = SensorReading(
-                    configurationRead.dhtPinExternal,
+                ext_humidity, ext_temperature = ExtSensorReading(
                     configurationRead.externalTempOffset)
-                int_humidity, int_temperature = SensorReading(
-                    configurationRead.dhtPinInternal,
+                int_humidity, int_temperature = IntSensorReading(
                     configurationRead.internalTempOffset)
 
                 if ext_humidity is None or ext_temperature is None or int_humidity is None or int_temperature is None:
@@ -114,14 +113,43 @@ def main():
         logger.error("Keyboard Interrupt")
 
 
-def SensorReading(dhtPin, temperatureOffset):
+def ExtSensorReading(temperatureOffset):
     read_temp = []
     read_hum = []
+
     for _ in range(5):
-        hum, tmp = Adafruit_DHT.read_retry(dhtSensor, dhtPin, 5)
-        if hum is not None and tmp is not None:
-            read_temp.append(int(tmp))
-            read_hum.append(int(hum))
+        time.sleep(2.0)
+        try:
+            read_temp.append(int(dht_ext_device.temperature))
+            read_hum.append(int(dht_ext_device.humidity))
+        except RuntimeError as error:
+            # Errors happen fairly often, DHT's are hard to read, just keep going
+            print(error.args[0])
+            time.sleep(2.0)
+            continue
+    humidity = None
+    temperature = None
+    if len(read_hum) != 0:
+        humidity = sum(read_hum) // len(read_hum)
+    if len(read_temp) != 0:
+        temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
+    return humidity, temperature
+
+
+def IntSensorReading(temperatureOffset):
+    read_temp = []
+    read_hum = []
+
+    for _ in range(5):
+        time.sleep(2.0)
+        try:
+            read_temp.append(int(dht_int_device.temperature))
+            read_hum.append(int(dht_int_device.humidity))
+        except RuntimeError as error:
+            # Errors happen fairly often, DHT's are hard to read, just keep going
+            print(error.args[0])
+            time.sleep(2.0)
+            continue
     humidity = None
     temperature = None
     if len(read_hum) != 0:
