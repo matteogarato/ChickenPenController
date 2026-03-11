@@ -35,9 +35,9 @@ def main():
     GPIO.setup(configurationRead.remoteRelayPin, GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherPin), GPIO.OUT)
     GPIO.setup(int(configurationRead.heatherFanPin), GPIO.OUT)
-    TurnHeather(False)
-    TurnFan(False)
-    TurnRemoteRelay(False)
+    turn_heather(False)
+    turn_fan(False)
+    turn_remote_relay(False)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if configurationRead.mqttActive:
         client.username_pw_set(configurationRead.mqttUser,
@@ -54,28 +54,34 @@ def main():
                 configurationRead = ConfigFileParser(configFilePath)
                 cpu_temp = CPUTemperature().temperature
                 logger.info(f"cpu temp:{cpu_temp}")
-                TurnRpiFan(cpu_temp > 40)
-
-                ext_humidity, ext_temperature = ExtSensorReading(
+                turn_raspberry_fan(cpu_temp > 40)
+                logger.info("before external reading")
+                ext_humidity, ext_temperature = external_sensor_reading(
                     configurationRead.externalTempOffset)
-                int_humidity, int_temperature = IntSensorReading(
+                logger.info("after external reading")
+                logger.info("before internal reading")
+                int_humidity, int_temperature = internal_sensor_reading(
                     configurationRead.internalTempOffset)
+                logger.info("after internal reading")
 
                 if ext_humidity is None or ext_temperature is None or int_humidity is None or int_temperature is None:
                     logger.error("Invalid sensor reading")
                 else:
                     if int_temperature < configurationRead.minTemp:
-                        TurnHeather(True)
-                        TurnFan(int_humidity > configurationRead.maxHumidity)
+                        logger.info("turn on heather")
+                        turn_heather(True)
+                        turn_fan(int_humidity > configurationRead.maxHumidity)
 
-                    if (int_temperature < configurationRead.maxTemp and
-                            int_temperature > configurationRead.minTemp):
-                        TurnHeather(False)
-                        TurnFan(int_humidity > configurationRead.maxHumidity)
+                    if configurationRead.maxTemp > int_temperature > configurationRead.minTemp:
+                        logger.info("turn off heather")
+                        turn_heather(False)
+                        turn_fan(int_humidity > configurationRead.maxHumidity)
 
                     if int_temperature > configurationRead.maxTemp:
-                        TurnHeather(False)
-                        TurnFan(True)
+                        logger.info("turn off heather")
+                        turn_heather(False)
+                        logger.info("turn on fan")
+                        turn_fan(True)
 
                     data = {
                         "extTemperature": ext_temperature,
@@ -87,9 +93,9 @@ def main():
                         "rpiFanStatus": rpiFanStatus
                     }
                     payload = json.dumps(data)
-                    logger.debug("payload: " + payload)
+                    logger.info("payload: " + payload)
                     topic = configurationRead.chickenPenTopic
-                    logger.debug("topic: " + topic)
+                    logger.info("topic: " + topic)
                     if configurationRead.mqttActive and mqttConnected:
                         client.publish(topic, payload)
                         time.sleep(1)
@@ -113,10 +119,10 @@ def main():
         logger.error("Keyboard Interrupt")
 
 
-def ExtSensorReading(temperatureOffset):
+def external_sensor_reading(temperature_offset):
     read_temp = []
     read_hum = []
-
+    logger.info("external sensor reading - before for loop")
     for _ in range(5):
         time.sleep(2.0)
         try:
@@ -127,19 +133,21 @@ def ExtSensorReading(temperatureOffset):
             print(error.args[0])
             time.sleep(2.0)
             continue
+    logger.info("external sensor reading - after for loop")
     humidity = None
     temperature = None
     if len(read_hum) != 0:
         humidity = sum(read_hum) // len(read_hum)
     if len(read_temp) != 0:
-        temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
+        temperature = (sum(read_temp) // len(read_temp)) + temperature_offset
+    logger.info("external sensor reading - after median")
     return humidity, temperature
 
 
-def IntSensorReading(temperatureOffset):
+def internal_sensor_reading(temperature_offset):
     read_temp = []
     read_hum = []
-
+    logger.info("internal sensor reading - before for loop")
     for _ in range(5):
         time.sleep(2.0)
         try:
@@ -150,16 +158,18 @@ def IntSensorReading(temperatureOffset):
             print(error.args[0])
             time.sleep(2.0)
             continue
+    logger.info("internal sensor reading - after for loop")
     humidity = None
     temperature = None
     if len(read_hum) != 0:
         humidity = sum(read_hum) // len(read_hum)
     if len(read_temp) != 0:
-        temperature = (sum(read_temp) // len(read_temp)) + temperatureOffset
+        temperature = (sum(read_temp) // len(read_temp)) + temperature_offset
+    logger.info("internal sensor reading - after median")
     return humidity, temperature
 
 
-def TurnHeather(status):
+def turn_heather(status):
     global configurationRead, heatherStatus, logger
     if heatherStatus != status:
         heatherStatus = not heatherStatus
@@ -171,7 +181,7 @@ def TurnHeather(status):
     return
 
 
-def TurnFan(status):
+def turn_fan(status):
     global configurationRead, fanStatus, logger
     if fanStatus != status:
         fanStatus = not fanStatus
@@ -181,7 +191,7 @@ def TurnFan(status):
     return
 
 
-def TurnRpiFan(status):
+def turn_raspberry_fan(status):
     global configurationRead, rpiFanStatus, logger
     if rpiFanStatus != status:
         rpiFanStatus = not rpiFanStatus
@@ -191,7 +201,7 @@ def TurnRpiFan(status):
     return
 
 
-def TurnRemoteRelay(status):
+def turn_remote_relay(status):
     global configurationRead, remoteRelayStatus, logger
     if remoteRelayStatus != status:
         remoteRelayStatus = not remoteRelayStatus
@@ -225,8 +235,8 @@ def on_message(client, userdata, message):
     global logger
     msg = str(message.payload.decode("utf-8"))
     logger.debug(msg)
-    mqttStatusSetter = json.loads(msg)
-    TurnRemoteRelay(mqttStatusSetter.ActiveRemoteRelay)
+    mqtt_status_setter = json.loads(msg)
+    turn_remote_relay(mqtt_status_setter.ActiveRemoteRelay)
 
 
 if __name__ == "__main__":

@@ -8,9 +8,9 @@ class ConfigFileParser:
     DEFAULT_MAX_HUMIDITY = 80
     DEFAULT_REFRESH_RATE = 1
 
-    def __init__(self, configFilePath):
+    def __init__(self, config_file_path):
         config = configparser.ConfigParser()
-        config.read(configFilePath)
+        config.read(config_file_path)
         self.fanPin = config.getint('Sensor', 'fanPin')
         self.heatherPin, self.heatherFanPin = config.get(
             'Sensor', 'heatherPin').split(',')
