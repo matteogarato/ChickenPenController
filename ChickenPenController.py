@@ -124,14 +124,12 @@ def external_sensor_reading(temperature_offset):
     read_hum = []
     logger.info("external sensor reading - before for loop")
     for _ in range(5):
-        time.sleep(2.0)
         try:
             read_temp.append(int(dht_ext_device.temperature))
             read_hum.append(int(dht_ext_device.humidity))
-        except RuntimeError as error:
+        except Exception as e:
             # Errors happen fairly often, DHT's are hard to read, just keep going
-            print(error.args[0])
-            time.sleep(2.0)
+            logger.error('external reading error at %s', 'external_sensor_reading', exc_info=e)
             continue
     logger.info("external sensor reading - after for loop")
     humidity = None
@@ -149,14 +147,12 @@ def internal_sensor_reading(temperature_offset):
     read_hum = []
     logger.info("internal sensor reading - before for loop")
     for _ in range(5):
-        time.sleep(2.0)
         try:
             read_temp.append(int(dht_int_device.temperature))
             read_hum.append(int(dht_int_device.humidity))
-        except RuntimeError as error:
+        except Exception as e:
             # Errors happen fairly often, DHT's are hard to read, just keep going
-            print(error.args[0])
-            time.sleep(2.0)
+            logger.error('internal reading Error at %s', 'internal_sensor_reading', exc_info=e)
             continue
     logger.info("internal sensor reading - after for loop")
     humidity = None
