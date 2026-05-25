@@ -21,14 +21,17 @@ heatherStatus = False
 remoteRelayStatus = False
 rpiFanStatus = False
 mqttConnected = False
+errorCounter = 0
 dht_ext_device = adafruit_dht.DHT22(board.D4)
 dht_int_device = adafruit_dht.DHT22(board.D5)
 configurationRead: ConfigFileParser
 logger = logging.getLogger('ChickenPenController')
 
+
 def main():
-    global configurationRead, fanStatus, heatherStatus, mqttConnected, logger
+    global configurationRead, fanStatus, heatherStatus, mqttConnected, logger,errorCounter
     configurationRead = ConfigFileParser(configFilePath)
+    errorCounter = 0
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(configurationRead.fanPin, GPIO.OUT)
     GPIO.setup(configurationRead.rpiFanPin, GPIO.OUT)
@@ -52,6 +55,13 @@ def main():
             try:
                 logger.info("start of cycle")
                 configurationRead = ConfigFileParser(configFilePath)
+                if errorCounter >= 5:
+                    if configurationRead.mqttActive:
+                        client.loop_stop()
+                        client.disconnect()
+                    GPIO.cleanup()
+                    logger.error("Max sequence error, exiting")
+                    break
                 cpu_temp = CPUTemperature().temperature
                 logger.info(f"cpu temp:{cpu_temp}")
                 turn_raspberry_fan(cpu_temp > 40)
@@ -65,8 +75,11 @@ def main():
                 logger.info("after internal reading")
 
                 if ext_humidity is None or ext_temperature is None or int_humidity is None or int_temperature is None:
+                    errorCounter += 1
                     logger.error("Invalid sensor reading")
+                    continue
                 else:
+                    errorCounter = 0
                     if int_temperature < configurationRead.minTemp:
                         logger.info("turn on heather")
                         turn_heather(True)
@@ -88,6 +101,7 @@ def main():
                         "extHumidity": ext_humidity,
                         "intTemperature": int_temperature,
                         "intHumidity": int_humidity,
+                        "cpuTemp": cpu_temp,
                         "fanStatus": fanStatus,
                         "heatherStatus": heatherStatus,
                         "rpiFanStatus": rpiFanStatus
@@ -120,16 +134,18 @@ def main():
 
 
 def external_sensor_reading(temperature_offset):
+    global dht_ext_device
     read_temp = []
     read_hum = []
     logger.info("external sensor reading - before for loop")
-    for _ in range(5):
+    for _ in range(2):
         try:
-            read_temp.append(int(dht_ext_device.temperature))
-            read_hum.append(int(dht_ext_device.humidity))
+            read_temp.append(dht_ext_device.temperature)
+            read_hum.append(dht_ext_device.humidity)
         except Exception as e:
             # Errors happen fairly often, DHT's are hard to read, just keep going
-            logger.error('external reading error at %s', 'external_sensor_reading', exc_info=e)
+            logger.error('external reading error at %s',
+                         'external_sensor_reading', exc_info=e)
             continue
     logger.info("external sensor reading - after for loop")
     humidity = None
@@ -143,16 +159,18 @@ def external_sensor_reading(temperature_offset):
 
 
 def internal_sensor_reading(temperature_offset):
+    global dht_int_device
     read_temp = []
     read_hum = []
     logger.info("internal sensor reading - before for loop")
-    for _ in range(5):
+    for _ in range(2):
         try:
-            read_temp.append(int(dht_int_device.temperature))
-            read_hum.append(int(dht_int_device.humidity))
+            read_temp.append(dht_int_device.temperature)
+            read_hum.append(dht_int_device.humidity)
         except Exception as e:
             # Errors happen fairly often, DHT's are hard to read, just keep going
-            logger.error('internal reading Error at %s', 'internal_sensor_reading', exc_info=e)
+            logger.error('internal reading Error at %s',
+                         'internal_sensor_reading', exc_info=e)
             continue
     logger.info("internal sensor reading - after for loop")
     humidity = None
